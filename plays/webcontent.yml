@@ -1,6 +1,6 @@
 ---
 - name: Create a web content 
-  hosts: webservers
+  hosts: all
   become: true
 
   tasks:
