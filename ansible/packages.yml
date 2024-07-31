@@ -1,18 +1,10 @@
 ---
-- hosts: test prod
-  user: admin
-  become: yes
-  tasks:
-  - name: Install php and mariadb
-    yum: 
-      name: ['php', 'mariadb']
-      state: installed
 - hosts: dev
-  user: admin
+  user: konkito
   become: yes
   tasks:
-  - name: Install php mariadb and development tools
-    yum:
-      name: ['php', 'mariadb', '@Development tools']
+  - name: Install httpd
+    ansible.builtin.yum: 
+      name: httpd
       state: latest
 ...
