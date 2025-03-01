@@ -1,21 +1,34 @@
 ---
 # tasks file for roles/apache
-- name: Install httpd
+- name: Install httpd and firewalld
   yum:
-    name: httpd
+    name: 
+      - httpd
+      - firewalld
     state: latest
 
-- name: start and enable httpd
-  systemd:
-    name: httpd
+- name: start and enabled httpd
+  service: 
+    name: "{{ item }}"
     state: started
-    enabled: yes
+    enabled: true
+  loop:
+    - httpd
+    - firewalld  
 
-- name: Edit httpd file to listen on port 8080
-  lineinfile:
-    path: /etc/httpd/conf/httpd.conf
-    regexp: '^Listen '
-    insertafter: '^#Listen '
-    line: Listen 8080
-  notify: restart httpd
+- name: Open up port 80
+  firewalld:
+    service: http
+    permanent: true
+    immediate: true
+    state: enabled
 
+- name: Generate the /var/www/html/index.html file
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+
+- name: restart httpd
+  service:
+    name: httpd
+    state: restarted  

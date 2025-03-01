@@ -1,16 +1,31 @@
 ---
-- name: Configure the message of the day
+- name: Add content to /etc/motd file
   hosts: all
   become: true
-  vars: 
-    - system_owner: Adebayo
-  tasks:
 
-  - name: Deploy motd.j2 on the manage nodes
-    template:
-      src: motd.j2
-      dest: /etc/motd
-      owner: root
-      group: root
-      mode: 0644
+  tasks:
+    - name: Add content to proxy host group
+      copy:
+        content: “Welcome to HAProxy server”
+        dest: /etc/motd
+      when: inventory_hostname in groups['proxy']
+
+    - name: Add content to webserver host group
+      copy:
+        content: “Welcome to Apache server”
+        dest: /etc/motd
+      when: inventory_hostname in groups['webservers']
+
+    - name: Add content to database host group
+      copy:
+        content: “Welcome to database server”
+        dest: /etc/motd
+      when: inventory_hostname in groups['database']
+
+    - name: Add content to test host group
+      copy:
+        content: “Welcome to test server”
+        dest: /etc/motd
+      when: inventory_hostname in groups['test']
   
+
