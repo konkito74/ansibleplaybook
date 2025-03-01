@@ -1,0 +1,97 @@
+---
+- name: RHEL 8 Server Patching Playbook
+  hosts: all  # Replace with your target host group
+  user: konkito
+  become: yes
+  gather_facts: yes
+  serial: 2  # Patch 2 servers at a time to minimize impact
+  
+  vars:
+    patch_log_dir: "/var/log/patch_management"
+    create_backup: true
+    reboot_server: true
+    
+  pre_tasks:
+    - name: Create patch log directory
+      file:
+        path: "{{ patch_log_dir }}"
+        state: directory
+        mode: 0755
+    
+    - name: Backup important configuration files
+      when: create_backup
+      block:
+        - name: Create backup of critical config files
+          copy:
+            src: "{{ item }}"
+            dest: "{{ patch_log_dir }}/{{ item | basename }}.bkp"
+            remote_src: yes
+          loop:
+            - /etc/fstab
+            - /etc/hosts
+            - /etc/resolv.conf
+          ignore_errors: yes
+
+  tasks:
+    - name: Check available disk space
+      shell: df -h / | awk 'NR==2 {print $5}' | sed 's/%//'
+      register: disk_space
+      failed_when: disk_space.stdout | int > 80
+
+    - name: Update package cache
+      yum:
+        update_cache: yes
+      changed_when: false
+
+    - name: Check for available updates
+      yum:
+        list: updates
+      register: updates_available
+      changed_when: false
+
+    - name: Display available updates
+      debug:
+        var: updates_available.results
+      when: updates_available.results | length > 0
+
+    - name: Patch the server
+      yum:
+        name: '*'
+        state: latest
+        update_cache: yes
+      register: yum_update_result
+      when: updates_available.results | length > 0
+
+    - name: Check kernel updates
+      shell: needs-restarting -k
+      register: kernel_updates
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Reboot server if kernel updated and reboot_server is true
+      reboot:
+        msg: "Rebooting for kernel updates"
+        reboot_timeout: 600
+      when: 
+        - reboot_server
+        - kernel_updates.rc == 1
+
+    - name: Log patch results
+      copy:
+        content: |
+          Patch Date: {{ ansible_date_time.iso8601 }}
+          Server: {{ inventory_hostname }}
+          Updates Applied: {{ updates_available.results | length }}
+          Kernel Updated: {{ kernel_updates.rc == 1 }}
+        dest: "{{ patch_log_dir }}/patch_log_{{ inventory_hostname }}_{{ ansible_date_time.date }}.txt"
+
+  #post_tasks:
+  # Error handling
+  rescue:
+    - name: Patch failure notification
+      copy:
+        content: |
+          PATCH FAILED on {{ inventory_hostname }}
+          Date: {{ ansible_date_time.iso8601 }}
+        dest: "{{ patch_log_dir }}/patch_failure_{{ inventory_hostname }}.txt"
+      when: ansible_failed_result is defined
