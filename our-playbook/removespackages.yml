@@ -3,7 +3,7 @@
   hosts: all
   become: true
   tasks:
-    - name: remove apache pkg
+    - name: stop service
       systemd:
         name: httpd
         state: stopped
