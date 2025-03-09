@@ -1,0 +1,26 @@
+---
+- name: remove packages
+  hosts: all
+  become: true
+  tasks:
+    - name: remove apache pkg
+      systemd:
+        name: httpd
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove httpd package
+      dnf:
+        name: httpd
+        state: absent
+
+    - name: Remove httpd configuration files
+      file:
+        path: /etc/httpd
+        state: absent
+
+    - name: Clean up any leftover httpd data
+      file:
+        path: /var/www/html
+        state: absent
