@@ -2,9 +2,78 @@
 - name: Configure the mariadb server
   hosts: database
   become: true
-  vars_files:
-    - secret.yml
+ vars:
+    mysql_root_password: "Online123!"
+    mysql_new_user: "dbuser"
+    mysql_new_user_password: "Online456!"
+    mysql_database_name: "myapp_db"
+    mysql_packages:
+      - mysql-server
+      - mysql
+      - python3-PyMySQL
 
-  roles:
-    - sample-mysql
+  tasks:
+    - name: Install RHEL 8 MySQL Repository
+      dnf:
+        name: "@mysql:8.0"
+        state: present
 
+    - name: Install MySQL packages
+      dnf:
+        name: "{{ mysql_packages }}"
+        state: present
+
+    - name: Start and enable MySQL service
+      systemd:
+        name: mysqld
+        state: started
+        enabled: yes
+
+    - name: Check if MySQL is initialized
+      stat:
+        path: /var/lib/mysql/mysql
+      register: mysql_db_initialized
+
+    - name: Set MySQL root password
+      shell: |
+        mysql --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_password }}';"
+      when: mysql_db_initialized.stat.exists
+      
+    - name: Create database
+      mysql_db:
+        name: "{{ mysql_database_name }}"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Create database user
+      mysql_user:
+        name: "{{ mysql_new_user }}"
+        password: "{{ mysql_new_user_password }}"
+        priv: "{{ mysql_database_name }}.*:ALL"
+        host: 'localhost'
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Configure MySQL for improved security
+      mysql_variables:
+        variable: "{{ item.var }}"
+        value: "{{ item.value }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+      with_items:
+        - { var: 'local_infile', value: '0' }
+        - { var: 'max_connections', value: '100' }
+
+    - name: Configure MySQL firewall
+      firewalld:
+        service: mysql
+        state: enabled
+        permanent: yes
+        immediate: yes
+
+    - name: Restart MySQL
+      systemd:
+        name: mysqld
+        state: restarted
