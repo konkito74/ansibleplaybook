@@ -2,7 +2,7 @@
 - name: Configure the mariadb server
   hosts: database
   become: true
- vars:
+  vars:
     mysql_root_password: "Oline123!"
     mysql_new_user: "dbuser"
     mysql_new_user_password: "Online123!"
@@ -65,8 +65,8 @@
       firewalld:
         service: mysql
         state: enabled
-        permanent: yes
-        immediate: yes
+        permanent: true
+        immediate: true
 
     - name: Restart MySQL
       systemd:
