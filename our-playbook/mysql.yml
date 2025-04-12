@@ -1,5 +1,5 @@
 ---
-- name: Configure the mariadb server
+- name: Configure the MariaDB server
   hosts: database
   become: true
   vars:
@@ -8,41 +8,41 @@
     mysql_new_user_password: "Online123!"
     mysql_database_name: "myapp_db"
     mysql_packages:
-      - mysql-server
-      - mysql
+      - mariadb-server
+      - mariadb
       - python3-PyMySQL
-
   tasks:
-    - name: Install MySQL packages
+    - name: Install MariaDB packages
       dnf:
         name: "{{ mysql_packages }}"
         state: present
-
-    - name: Start and enable MySQL service
+    
+    - name: Start and enable MariaDB service
       systemd:
-        name: mysqld
+        name: mariadb
         state: started
         enabled: yes
-
-    - name: Check if MySQL is initialized
+    
+    - name: Check if MariaDB is initialized
       stat:
         path: /var/lib/mysql/mysql
       register: mysql_db_initialized
-
-    - name: Set MySQL root password
-      shell: |
-        mysql --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_password }}';"
+    
+    - name: Set MariaDB root password
+      ansible.builtin.shell: |
+        mysqladmin -u root password "{{ mysql_root_password }}"
       when: mysql_db_initialized.stat.exists
-      
+      ignore_errors: yes
+    
     - name: Create database
-      mysql_db:
+      community.mysql.mysql_db:
         name: "{{ mysql_database_name }}"
         state: present
         login_user: root
         login_password: "{{ mysql_root_password }}"
-
+    
     - name: Create database user
-      mysql_user:
+      community.mysql.mysql_user:
         name: "{{ mysql_new_user }}"
         password: "{{ mysql_new_user_password }}"
         priv: "{{ mysql_database_name }}.*:ALL"
@@ -50,25 +50,24 @@
         state: present
         login_user: root
         login_password: "{{ mysql_root_password }}"
-
-    - name: Configure MySQL for improved security
-      mysql_variables:
-        variable: "{{ item.var }}"
-        value: "{{ item.value }}"
+    
+    - name: Set MariaDB global variables for improved security
+      community.mysql.mysql_query:
         login_user: root
         login_password: "{{ mysql_root_password }}"
-      with_items:
+        query: "SET GLOBAL {{ item.var }} = {{ item.value }};"
+      loop:
         - { var: 'local_infile', value: '0' }
         - { var: 'max_connections', value: '100' }
-
-    - name: Configure MySQL firewall
+    
+    - name: Configure MariaDB firewall
       firewalld:
         service: mysql
         state: enabled
         permanent: true
         immediate: true
-
-    - name: Restart MySQL
+    
+    - name: Restart MariaDB
       systemd:
-        name: mysqld
+        name: mariadb
         state: restarted
