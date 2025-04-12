@@ -3,9 +3,9 @@
   hosts: database
   become: true
  vars:
-    mysql_root_password: "Online123!"
+    mysql_root_password: "Oline123!"
     mysql_new_user: "dbuser"
-    mysql_new_user_password: "Online456!"
+    mysql_new_user_password: "Online123!"
     mysql_database_name: "myapp_db"
     mysql_packages:
       - mysql-server
@@ -13,11 +13,6 @@
       - python3-PyMySQL
 
   tasks:
-    - name: Install RHEL 8 MySQL Repository
-      dnf:
-        name: "@mysql:8.0"
-        state: present
-
     - name: Install MySQL packages
       dnf:
         name: "{{ mysql_packages }}"
